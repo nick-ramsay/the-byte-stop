@@ -1,0 +1,10 @@
+# Secrets — never commit real env files, only .env.example
+.env
+.env.local
+.env.*.local
+
+# OS / editor cruft
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
