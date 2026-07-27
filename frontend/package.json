@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sourcemaps:upload": "datadog-ci sourcemaps upload ./dist --service=the-byte-stop --release-version=${VITE_DATADOG_VERSION:-$npm_package_version} --minified-path-prefix=/"
   },
   "dependencies": {
     "@datadog/browser-logs": "^7.6.0",
@@ -17,6 +18,7 @@
     "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
+    "@datadog/datadog-ci": "^5.21.2",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

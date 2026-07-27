@@ -1,6 +1,6 @@
 # The Byte Stop
 
-A small electronics e-commerce app (React + FastAPI + MongoDB) used as a live demo vehicle for a Datadog RUM presentation. Auth is intentionally minimal (email/password only, no third-party providers), and the checkout endpoint deliberately simulates payment latency and a ~50% failure rate so there's real, reproducible frontend/backend activity for RUM to catch on stage.
+A small electronics e-commerce app (React + FastAPI + MongoDB) used as a live demo vehicle for a Datadog RUM presentation. Auth is intentionally minimal (email/password only, no third-party providers), and the checkout endpoint deliberately simulates payment latency and a ~75% failure rate so there's real, reproducible frontend/backend activity for RUM to catch on stage.
 
 ## Prerequisites
 
@@ -22,6 +22,21 @@ docker-compose up --build
 - Backend logs are structured JSON to stdout; the Agent container collects them automatically from all containers (`DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true`) — no per-service log config needed, unlike the bare-metal setup below.
 - `backend/.env` and `frontend/.env` are reused as-is (via `env_file`) — only `MONGODB_URI`, `DD_AGENT_HOST`, and `DD_TRACE_AGENT_PORT` are overridden for the container network, everything else (JWT secret, RUM/Logs credentials, etc.) comes from the same files the bare-metal setup below uses.
 - Mongo's data lives in its own Docker volume, separate from any native `mongod` on the host — no port conflict, no shared state with the bare-metal workflow.
+
+### Production bundle + sourcemaps (for the Error Tracking demo beat)
+
+The default `frontend` service above runs Vite's dev server — unminified, so there's nothing for an uploaded sourcemap to unminify. For the pain-point-4 "minified stack → readable via RUM" beat, bring up the `frontend-prod` profile instead, which builds and serves the real production bundle:
+
+```bash
+docker compose --profile prod-demo build frontend-prod
+docker compose --profile prod-demo run --rm frontend-prod npm run sourcemaps:upload
+docker compose --profile prod-demo up frontend-prod
+```
+
+- App (prod bundle): http://localhost:5174 — same backend (`:8000`), already allowed in CORS.
+- The middle command uploads `dist/*.map` to Datadog under `service=the-byte-stop`, `release-version=$VITE_DATADOG_VERSION` — bump `VITE_DATADOG_VERSION` in `frontend/.env` on each rebuild you want tracked separately.
+- Needs `DD_API_KEY` in the root `.env` (already required for the Agent container) — `docker-compose.yml` maps it to `DATADOG_API_KEY` for this service, since that's the specific env var name `datadog-ci` looks for (separate from the RUM client token either way).
+- This is a separate, opt-in Compose profile specifically so `docker-compose up` (no `--profile`) keeps using the fast-iterating dev server for the rest of the demo.
 
 ## Bare-metal setup (alternative to Docker)
 

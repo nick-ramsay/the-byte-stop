@@ -11,6 +11,7 @@ const {
   VITE_DATADOG_SITE: site = 'datadoghq.com',
   VITE_DATADOG_SERVICE: service = 'the-byte-stop',
   VITE_DATADOG_ENV: env = 'sandbox',
+  VITE_DATADOG_VERSION: version = '0.0.0',
 } = import.meta.env
 
 if (applicationId && clientToken) {
@@ -20,6 +21,9 @@ if (applicationId && clientToken) {
     site,
     service,
     env,
+    // Must match the --release-version datadog-ci uploads sourcemaps under
+    // (see package.json "sourcemaps:upload"), or RUM can't unminify stacks.
+    version,
     sessionSampleRate: 100,
     sessionReplaySampleRate: 100,
     trackUserInteractions: true,
@@ -35,6 +39,7 @@ if (applicationId && clientToken) {
     site,
     service,
     env,
+    version,
     forwardErrorsToLogs: true,
     forwardConsoleLogs: ['error', 'warn'],
     sessionSampleRate: 100,

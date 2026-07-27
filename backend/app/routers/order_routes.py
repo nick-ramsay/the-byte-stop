@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/checkout", tags=["orders"])
 # Demo-only: simulate a flaky payment processor so the checkout call has real
 # latency/error variance for the RUM-APM trace-correlation demo beat.
 SIMULATED_LATENCY_SECONDS = 1.5
-SIMULATED_FAILURE_RATE = 0.5
+SIMULATED_FAILURE_RATE = 0.75
 
 
 class CartItem(BaseModel):

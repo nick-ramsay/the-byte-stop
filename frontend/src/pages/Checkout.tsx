@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { datadogLogs } from "@datadog/browser-logs";
+import { datadogRum } from "@datadog/browser-rum";
 import { api, ApiError } from "../api";
 import { useCart } from "../context/CartContext";
 
@@ -10,9 +12,9 @@ interface CheckoutResult {
 
 export default function Checkout() {
   const { lines, total, clearCart } = useCart();
+  const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<CheckoutResult | null>(null);
 
   async function handlePlaceOrder() {
     setSubmitting(true);
@@ -21,23 +23,25 @@ export default function Checkout() {
       const order = await api.post<CheckoutResult>("/api/checkout", {
         items: lines.map((l) => ({ productId: l.product.id, quantity: l.quantity })),
       });
-      setResult(order);
       clearCart();
+      navigate(`/order-confirmation/${order.orderId}`, { state: { total: order.total } });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Checkout failed");
+      const message = err instanceof ApiError ? err.message : "Checkout failed";
+      setError(message);
+      datadogLogs.logger.error("checkout failed", {
+        error: { message },
+        status: err instanceof ApiError ? err.status : undefined,
+        cartTotal: total,
+        itemCount: lines.length,
+      });
+      datadogRum.addError(err, {
+        status: err instanceof ApiError ? err.status : undefined,
+        cartTotal: total,
+        itemCount: lines.length,
+      });
     } finally {
       setSubmitting(false);
     }
-  }
-
-  if (result) {
-    return (
-      <div className="checkout-page">
-        <h1>Order confirmed</h1>
-        <p>Order {result.orderId} placed for ${result.total.toFixed(2)}.</p>
-        <Link to="/">Continue shopping</Link>
-      </div>
-    );
   }
 
   if (lines.length === 0) {

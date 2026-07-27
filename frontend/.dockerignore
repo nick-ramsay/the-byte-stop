@@ -1,3 +1,5 @@
 node_modules/
 dist/
-.env
+# Not excluding .env here (unlike backend/.dockerignore) — it holds no secrets,
+# only public RUM/Logs identifiers, and Dockerfile.prod needs it at build time
+# for Vite to embed VITE_* values into the production bundle.

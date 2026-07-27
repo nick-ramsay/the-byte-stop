@@ -8,6 +8,14 @@ services:
 
   datadog-agent:
     image: datadog/agent:latest
+    # This host runs a Podman machine (SELinux-enforcing VM), not Docker Desktop.
+    # Run as root and skip SELinux confinement so the Agent can actually connect
+    # to the mounted podman.sock for container_collect_all log tailing — SELinux
+    # blocks the connectto between an arbitrary container's domain and the
+    # container-runtime socket by design, independent of Unix file permissions.
+    user: "0"
+    security_opt:
+      - label:disable
     environment:
       DD_API_KEY: ${DD_API_KEY}
       DD_SITE: datadoghq.com
@@ -19,7 +27,10 @@ services:
     ports:
       - "8127:8126" # host 8127 to avoid colliding with the corporate host Agent on 8126
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # NOTE: this host is a Podman machine (VM), not Docker Desktop — the daemon
+      # resolves bind-mount sources against its own (VM) filesystem, so this must
+      # be the socket's real in-VM path, not the macOS-forwarded /var/run/docker.sock.
+      - /run/podman/podman.sock:/var/run/docker.sock:ro,z
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
 
@@ -44,6 +55,33 @@ services:
       - /app/node_modules
     ports:
       - "5173:5173"
+    depends_on:
+      - backend
+
+  # Serves the real minified production bundle (vs. the unminified dev server
+  # above) so the RUM Error Tracking + sourcemap-unminify demo beat has
+  # something to unminify. Not started by `docker-compose up` on its own —
+  # see README "Running with Docker" for the build + sourcemap upload steps.
+  frontend-prod:
+    profiles: ["prod-demo"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    env_file:
+      - .env
+      - ./frontend/.env
+    environment:
+      # datadog-ci looks for DATADOG_API_KEY specifically, not DD_API_KEY.
+      DATADOG_API_KEY: ${DD_API_KEY}
+      # No .git dir in this build context (it's just ./frontend), so datadog-ci
+      # can't shell out to git for repo linking — pass it explicitly instead.
+      # Export these from the host shell before running sourcemaps:upload, e.g.:
+      #   DD_GIT_REPOSITORY_URL=$(git remote get-url origin) DD_GIT_COMMIT_SHA=$(git rev-parse HEAD) \
+      #     docker-compose --profile prod-demo run --rm frontend-prod npm run sourcemaps:upload
+      DD_GIT_REPOSITORY_URL: ${DD_GIT_REPOSITORY_URL}
+      DD_GIT_COMMIT_SHA: ${DD_GIT_COMMIT_SHA}
+    ports:
+      - "5174:4173"
     depends_on:
       - backend
 
